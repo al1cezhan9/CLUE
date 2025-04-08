@@ -16,7 +16,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-
+# allows for testing w/o being in the lab
 class SimulatedInstrument:
     def __init__(self):
         self.current_voltage = 0
@@ -33,6 +33,7 @@ class SimulatedInstrument:
         print(f"Simulated query: {command}")
         if ":MEAS:CURR?" in command:
             voltage = self.current_voltage
+            # quadratic current vs. voltage relationship w/ some noise 
             simulated_current = 1e-9 * (voltage ** 2) + np.random.normal(0, 1e-12)
             return str(simulated_current)
         return "0"
@@ -57,7 +58,7 @@ class KeithleyGUI(QWidget):
         self.init_ui()
         self.init_instrument()
 
-    def load_config(self):
+    def load_config(self): # loads the saved values in config.json
         try:
             with open('config.json', 'r') as f:
                 self.config = json.load(f)
