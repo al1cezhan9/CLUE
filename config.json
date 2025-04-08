@@ -1,0 +1,10 @@
+{
+    "save_path": "",
+    "delta_v": 0.1,
+    "delta_t": 0.1,
+    "bias_voltage": 1.0,
+    "aperture_time": 1.0,
+    "noise_avg": 10,
+    "start_v": -3.0,
+    "end_v": 3.0
+}
