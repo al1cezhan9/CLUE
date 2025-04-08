@@ -61,6 +61,19 @@ class KeithleyGUI(QWidget):
         try:
             with open('config.json', 'r') as f:
                 self.config = json.load(f)
+            default_config = {
+                'save_path': '',
+                'delta_v': 0.1,
+                'delta_t': 0.1,
+                'bias_voltage': 1.0,
+                'aperture_time': 1.0,
+                'noise_avg': 1,
+                'start_v': -3.0,
+                'end_v': 3.0
+            }
+            for key, value in default_config.items():
+                if key not in self.config:
+                    self.config[key] = value
         except FileNotFoundError:
             self.config = {
                 'save_path': '',
@@ -246,7 +259,6 @@ class KeithleyGUI(QWidget):
         self.status_label.setText("Status: Ready")
 
     def run_sweep(self):
-        # Save user inputs
         self.config['start_v'] = float(self.start_v_input.text())
         self.config['end_v'] = float(self.end_v_input.text())
         self.config['delta_v'] = float(self.delta_v_input.text())
@@ -268,6 +280,7 @@ class KeithleyGUI(QWidget):
         currents = []
 
         self.progress_signal.emit(len(voltages))
+        self.status_label.setText("Status: Measuring...")
 
         for i, v in enumerate(voltages):
             if self.stop_flag:
@@ -333,6 +346,8 @@ class KeithleyGUI(QWidget):
 
         self.status_label.setText("Status: Measurement Complete")
 
+        if not self.fast_acq_collect_checkbox.isChecked():
+            self.plot_signal.emit(times, currents)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
