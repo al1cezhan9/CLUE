@@ -75,7 +75,7 @@ class KeithleyGUI(QWidget):
             for key, value in default_config.items():
                 if key not in self.config:
                     self.config[key] = value
-        except FileNotFoundError:
+        except FileNotFoundError: # if config.json doesn't exist, create it with default values
             self.config = {
                 'save_path': '',
                 'delta_v': 0.1,
@@ -93,18 +93,36 @@ class KeithleyGUI(QWidget):
 
     def init_instrument(self):
         if self.simulation_mode:
-            print("Simulation mode enabled manually!")
             self.instrument = SimulatedInstrument()
-        else:
-            try:
-                rm = pyvisa.ResourceManager()
-                self.instrument = rm.open_resource('GPIB0::22::INSTR')
-                self.instrument.write("*RST")
-                print("Instrument initialized")
-            except Exception as e:
-                print(f"Instrument not found, switching to simulation mode!\nError: {e}")
-                self.simulation_mode = True
-                self.instrument = SimulatedInstrument()
+            self.status_label.setText("Status: Simulation Mode (manual override)")
+            return
+
+        try:
+            rm = pyvisa.ResourceManager()
+            resources = rm.list_resources()
+
+            # Optional: Filter for instruments with "GPIB" in address
+            gpib_devices = [r for r in resources if "GPIB" in r]
+
+            if not gpib_devices:
+                raise RuntimeError("No GPIB instruments found.")
+
+            # Default to first found device, or allow manual selection later
+            address = gpib_devices[0]
+            self.instrument = rm.open_resource(address)
+
+            # Confirm communication
+            idn = self.instrument.query("*IDN?").strip()
+            self.status_label.setText(f"Keithley 6517A detected: {idn}")
+            print(f"Connected to: {idn}")
+
+        except Exception as e:
+            print(f"Instrument not found. Switching to simulation.\n{e}")
+            self.instrument = SimulatedInstrument()
+            self.simulation_mode = True
+            self.simulation_checkbox.setChecked(True)
+            self.status_label.setText("Status: Simulation Mode (instrument not found)")
+
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -223,8 +241,8 @@ class KeithleyGUI(QWidget):
 
     def toggle_simulation_mode(self):
         self.simulation_mode = self.simulation_checkbox.isChecked()
-        print(f"Simulation mode set to: {self.simulation_mode}")
         self.init_instrument()
+
 
     def browse_file(self):
         path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Excel Files (*.xlsx);;Text Files (*.txt);;CSV Files (*.csv)")
