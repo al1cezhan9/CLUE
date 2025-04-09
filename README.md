@@ -1,15 +1,15 @@
 # Keithley 6517A Control Panel GUI
 
-A Python GUI application to control the **Keithley 6517A Electrometer** for automated voltage sweeps and data collection, with real-time plotting, progress tracking, and file export.
+A Python GUI application to control the **Keithley 6517A Electrometer** for automated voltage sweeps and data collection.
 
 This tool supports:
 
-- ✅ Sweep Mode (Voltage Sweep I-V Measurement)
-- ✅ Data Collection Mode (Fixed Bias Time-Based Measurement)
-- ✅ Simulation Mode (Test without physical hardware)
-- ✅ Real-time plot updates
-- ✅ Progress bar and status messages
-- ✅ Auto-saving data to Excel
+-  Sweep Mode (Voltage Sweep I-V Measurement)
+-  Data Collection Mode (Fixed Bias Time-Based Measurement)
+-  Simulation Mode (Test without physical hardware)
+-  Real-time plot updates
+-  Progress bar and status messages
+-  Auto-saving data to Excel
 
 ---
 
@@ -55,11 +55,6 @@ pip install pyvisa pyqt6 numpy pandas matplotlib openpyxl
 
 > 💡 **Note:**\
 > If you encounter errors about `openpyxl`, ensure it is installed as it is required for Excel export.
-
-### Optional:
-
-If you do not have the actual hardware, no worries!\
-Simulation mode is available via the checkbox in the GUI.
 
 ---
 
