@@ -111,7 +111,6 @@ class KeithleyGUI(QWidget):
             print(f"Connected to: {idn}")
 
             self.simulation_checkbox.setChecked(False)
-            self.simulation_checkbox.setEnabled(False)
             self.simulation_mode = False
 
         except Exception as e:
@@ -301,6 +300,7 @@ class KeithleyGUI(QWidget):
                 break
 
             self.instrument.write(f":SOUR:VOLT {v}")
+            self.instrument.write(":INIT")
             time.sleep(delta_t)
             current = float(self.instrument.query(":MEAS:CURR?").strip())
             currents.append(current)
@@ -365,4 +365,3 @@ if __name__ == '__main__':
     gui = KeithleyGUI()
     gui.show()
     sys.exit(app.exec())
-    
