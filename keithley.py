@@ -261,6 +261,9 @@ class KeithleyGUI(QWidget):
         path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Excel Files (*.xlsx);;Text Files (*.txt);;CSV Files (*.csv)")
         if path:
             self.filepath_input.setText(path)
+        path, _ = QFileDialog.getSaveFileName(self, "Save Sweep File", "", "Excel Files (*.xlsx);;CSV Files (*.csv)")
+        if path:
+            self.sweep_filepath_input.setText(path)
 
     def start_sweep(self):
         self.stop_flag = False
@@ -410,3 +413,4 @@ if __name__ == '__main__':
     gui = KeithleyGUI()
     gui.show()
     sys.exit(app.exec())
+
