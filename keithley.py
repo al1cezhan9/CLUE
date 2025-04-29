@@ -200,6 +200,8 @@ class KeithleyGUI(QWidget):
         self.noise_avg_input.setValue(self.config['noise_avg'])
         self.delta_t_collect = QLineEdit(str(self.config['delta_t']))
         self.filepath_input = QLineEdit(self.config['save_path'])
+        self.file_format_input = QComboBox()
+        self.file_format_input.addItems([".xlsx", ".csv"])
         browse_button = QPushButton("Browse...")
         browse_button.clicked.connect(self.browse_file)
 
@@ -214,6 +216,8 @@ class KeithleyGUI(QWidget):
         layout.addWidget(QLabel("Save File:"))
         layout.addWidget(self.filepath_input)
         layout.addWidget(browse_button)
+        layout.addWidget(QLabel("File Format:"))
+        layout.addWidget(self.file_format_input)
 
         self.fast_acq_collect_checkbox = QCheckBox("Enable Fast Acquisition (Real-Time Plot)")
         layout.addWidget(self.fast_acq_collect_checkbox)
@@ -309,8 +313,14 @@ class KeithleyGUI(QWidget):
         self.plot_signal.emit(voltages[:len(currents)], currents)
 
         save_path = self.config['save_path'] or f"sweep_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        file_ext = self.file_format_input.currentText()
+        save_path = self.config['save_path'] or f"sweep_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
         df = pd.DataFrame({'Voltage (V)': voltages[:len(currents)], 'Current (A)': currents})
         df.to_excel(save_path, index=False)
+        if save_path.endswith(".csv"):
+            df.to_csv(save_path, index=False)
+        else:
+            df.to_excel(save_path, index=False)
         print(f"Sweep complete. Data saved to {save_path}")
         self.status_label.setText("Status: Measurement Complete")
 
@@ -328,6 +338,8 @@ class KeithleyGUI(QWidget):
         delta_t = self.config['delta_t']
 
         save_path = self.config['save_path'] or f"collection_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        file_ext = self.file_format_input.currentText()
+        save_path = self.config['save_path'] or f"collection_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
 
         self.instrument.write(f":SOUR:VOLT {bias_v}")
         self.instrument.write(f":SENS:CURR:NPLC {aperture}")
@@ -354,6 +366,10 @@ class KeithleyGUI(QWidget):
 
         df = pd.DataFrame({'Time (s)': times, 'Current (A)': currents})
         df.to_excel(save_path, index=False)
+        if save_path.endswith(".csv"):
+            df.to_csv(save_path, index=False)
+        else:
+            df.to_excel(save_path, index=False)
         print(f"Data collection complete. Data saved to {save_path}")
         self.status_label.setText("Status: Measurement Complete")
 
