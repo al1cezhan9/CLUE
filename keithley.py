@@ -190,6 +190,16 @@ class KeithleyGUI(QWidget):
         stop_button.clicked.connect(self.stop_measurement)
         layout.addWidget(stop_button)
 
+        self.sweep_filepath_input = QLineEdit(self.config["save_path"])
+        sweep_browse_button = QPushButton("Browse...")
+        sweep_browse_button.clicked.connect(self.browse_file_sweep)
+        self.sweep_file_format_input = QComboBox()
+        self.sweep_file_format_input.addItems([".xlsx", ".csv"])
+        layout.addWidget(QLabel("Save File (Sweep):"))
+        layout.addWidget(self.sweep_filepath_input)
+        layout.addWidget(sweep_browse_button)
+        layout.addWidget(QLabel("File Format (Sweep):"))
+        layout.addWidget(self.sweep_file_format_input)
         self.tab_sweep.setLayout(layout)
 
     def setup_collect_tab(self):
@@ -243,6 +253,11 @@ class KeithleyGUI(QWidget):
         self.progress.setValue(value)
 
     def browse_file(self):
+
+    def browse_file_sweep(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Save Sweep File", "", "Excel Files (*.xlsx);;CSV Files (*.csv)")
+        if path:
+            self.sweep_filepath_input.setText(path)
         path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Excel Files (*.xlsx);;Text Files (*.txt);;CSV Files (*.csv)")
         if path:
             self.filepath_input.setText(path)
@@ -312,11 +327,19 @@ class KeithleyGUI(QWidget):
 
         self.plot_signal.emit(voltages[:len(currents)], currents)
 
-        save_path = self.config['save_path'] or f"sweep_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        file_ext = self.sweep_file_format_input.currentText()
+        save_path = self.sweep_filepath_input.text() or f"sweep_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
         file_ext = self.file_format_input.currentText()
-        save_path = self.config['save_path'] or f"sweep_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
+        file_ext = self.sweep_file_format_input.currentText()
+        save_path = self.sweep_filepath_input.text() or f"sweep_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
         df = pd.DataFrame({'Voltage (V)': voltages[:len(currents)], 'Current (A)': currents})
-        df.to_excel(save_path, index=False)
+        if save_path.endswith(".csv"):
+            df.to_csv(save_path, index=False)
+        else:
+            df.to_excel(save_path, index=False)
+        if save_path.endswith(".csv"):
+            df.to_csv(save_path, index=False)
+        else:
         if save_path.endswith(".csv"):
             df.to_csv(save_path, index=False)
         else:
@@ -365,7 +388,13 @@ class KeithleyGUI(QWidget):
                 self.plot_signal.emit(times, currents)
 
         df = pd.DataFrame({'Time (s)': times, 'Current (A)': currents})
-        df.to_excel(save_path, index=False)
+        if save_path.endswith(".csv"):
+            df.to_csv(save_path, index=False)
+        else:
+            df.to_excel(save_path, index=False)
+        if save_path.endswith(".csv"):
+            df.to_csv(save_path, index=False)
+        else:
         if save_path.endswith(".csv"):
             df.to_csv(save_path, index=False)
         else:
