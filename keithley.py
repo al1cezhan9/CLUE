@@ -1,3 +1,4 @@
+
 import sys
 import json
 import threading
@@ -16,7 +17,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-# allows for testing w/o being in the lab
 class SimulatedInstrument:
     def __init__(self):
         self.current_voltage = 0
@@ -33,11 +33,9 @@ class SimulatedInstrument:
         print(f"Simulated query: {command}")
         if ":MEAS:CURR?" in command:
             voltage = self.current_voltage
-            # quadratic current vs. voltage relationship w/ some noise 
             simulated_current = 1e-9 * (voltage ** 2) + np.random.normal(0, 1e-12)
             return str(simulated_current)
         return "0"
-
 
 class KeithleyGUI(QWidget):
     plot_signal = pyqtSignal(object, object)
@@ -50,7 +48,7 @@ class KeithleyGUI(QWidget):
         self.setGeometry(100, 100, 1000, 750)
 
         self.load_config()
-        self.simulation_mode = True
+        self.simulation_mode = False
 
         self.measurement_thread = None
         self.stop_flag = False
@@ -58,7 +56,7 @@ class KeithleyGUI(QWidget):
         self.init_ui()
         self.init_instrument()
 
-    def load_config(self): # loads the saved values in config.json
+    def load_config(self):
         try:
             with open('config.json', 'r') as f:
                 self.config = json.load(f)
@@ -75,7 +73,7 @@ class KeithleyGUI(QWidget):
             for key, value in default_config.items():
                 if key not in self.config:
                     self.config[key] = value
-        except FileNotFoundError: # if config.json doesn't exist, create it with default values
+        except FileNotFoundError:
             self.config = {
                 'save_path': '',
                 'delta_v': 0.1,
@@ -92,29 +90,29 @@ class KeithleyGUI(QWidget):
             json.dump(self.config, f, indent=4)
 
     def init_instrument(self):
-        if self.simulation_mode:
-            self.instrument = SimulatedInstrument()
-            self.status_label.setText("Status: Simulation Mode (manual override)")
-            return
+        self.instrument = None
+        rm = pyvisa.ResourceManager()
 
         try:
-            rm = pyvisa.ResourceManager()
-            resources = rm.list_resources()
+            self.instrument = rm.open_resource("GPIB0::26::INSTR")
+            self.instrument.timeout = 5000
+            self.instrument.write_termination = '\n'
+            self.instrument.read_termination = '\n'
 
-            # Optional: Filter for instruments with "GPIB" in address
-            gpib_devices = [r for r in resources if "GPIB" in r]
+            self.instrument.write("*RST")
+            self.instrument.write(":SYST:ZCH OFF")
+            self.instrument.write(":SOUR:VOLT:RANG 500")
+            self.instrument.write(":SENS:FUNC 'CURR'")
+            self.instrument.write(":SENS:CURR:PROT 1e-3")
+            self.instrument.write(":FORM:ELEM CURR")
 
-            if not gpib_devices:
-                raise RuntimeError("No GPIB instruments found.")
-
-            # Default to first found device, or allow manual selection later
-            address = gpib_devices[0]
-            self.instrument = rm.open_resource(address)
-
-            # Confirm communication
             idn = self.instrument.query("*IDN?").strip()
             self.status_label.setText(f"Keithley 6517A detected: {idn}")
             print(f"Connected to: {idn}")
+
+            self.simulation_checkbox.setChecked(False)
+            self.simulation_checkbox.setEnabled(False)
+            self.simulation_mode = False
 
         except Exception as e:
             print(f"Instrument not found. Switching to simulation.\n{e}")
@@ -123,7 +121,6 @@ class KeithleyGUI(QWidget):
             self.simulation_checkbox.setChecked(True)
             self.status_label.setText("Status: Simulation Mode (instrument not found)")
 
-
     def init_ui(self):
         layout = QVBoxLayout(self)
 
@@ -131,7 +128,7 @@ class KeithleyGUI(QWidget):
         layout.addWidget(self.status_label)
 
         self.simulation_checkbox = QCheckBox("Simulation Mode (force)")
-        self.simulation_checkbox.setChecked(True)
+        self.simulation_checkbox.setChecked(False)
         self.simulation_checkbox.stateChanged.connect(self.toggle_simulation_mode)
         layout.addWidget(self.simulation_checkbox)
 
@@ -162,9 +159,16 @@ class KeithleyGUI(QWidget):
         self.setup_sweep_tab()
         self.setup_collect_tab()
 
+    def toggle_simulation_mode(self):
+        self.simulation_mode = self.simulation_checkbox.isChecked()
+        if self.simulation_mode:
+            self.instrument = SimulatedInstrument()
+            self.status_label.setText("Status: Simulation Mode (manual override)")
+        else:
+            self.init_instrument()
+
     def setup_sweep_tab(self):
         layout = QVBoxLayout()
-
         self.start_v_input = QLineEdit(str(self.config['start_v']))
         self.end_v_input = QLineEdit(str(self.config['end_v']))
         self.delta_v_input = QLineEdit(str(self.config['delta_v']))
@@ -191,7 +195,6 @@ class KeithleyGUI(QWidget):
 
     def setup_collect_tab(self):
         layout = QVBoxLayout()
-
         self.bias_input = QLineEdit(str(self.config['bias_voltage']))
         self.aperture_input = QLineEdit(str(self.config['aperture_time']))
         self.noise_avg_input = QSpinBox()
@@ -228,21 +231,13 @@ class KeithleyGUI(QWidget):
 
     def update_plot(self, x_data, y_data):
         self.ax.clear()
-        if self.tabs.currentIndex() == 0:
-            self.ax.set_xlabel("Voltage (V)")
-        else:
-            self.ax.set_xlabel("Time (s)")
+        self.ax.set_xlabel("Voltage (V)" if self.tabs.currentIndex() == 0 else "Time (s)")
         self.ax.set_ylabel("Current (A)")
         self.ax.plot(x_data, y_data, 'o-')
         self.canvas.draw()
 
     def update_progress(self, value):
         self.progress.setValue(value)
-
-    def toggle_simulation_mode(self):
-        self.simulation_mode = self.simulation_checkbox.isChecked()
-        self.init_instrument()
-
 
     def browse_file(self):
         path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Excel Files (*.xlsx);;Text Files (*.txt);;CSV Files (*.csv)")
@@ -309,7 +304,6 @@ class KeithleyGUI(QWidget):
             time.sleep(delta_t)
             current = float(self.instrument.query(":MEAS:CURR?").strip())
             currents.append(current)
-
             self.progress_signal.emit(i + 1)
 
         self.plot_signal.emit(voltages[:len(currents)], currents)
@@ -318,7 +312,6 @@ class KeithleyGUI(QWidget):
         df = pd.DataFrame({'Voltage (V)': voltages[:len(currents)], 'Current (A)': currents})
         df.to_excel(save_path, index=False)
         print(f"Sweep complete. Data saved to {save_path}")
-
         self.status_label.setText("Status: Measurement Complete")
 
     def run_collection(self):
@@ -362,7 +355,6 @@ class KeithleyGUI(QWidget):
         df = pd.DataFrame({'Time (s)': times, 'Current (A)': currents})
         df.to_excel(save_path, index=False)
         print(f"Data collection complete. Data saved to {save_path}")
-
         self.status_label.setText("Status: Measurement Complete")
 
         if not self.fast_acq_collect_checkbox.isChecked():
@@ -373,3 +365,4 @@ if __name__ == '__main__':
     gui = KeithleyGUI()
     gui.show()
     sys.exit(app.exec())
+    
